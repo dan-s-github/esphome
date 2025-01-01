@@ -7,11 +7,11 @@ namespace bl0940 {
 
 static const char *const TAG = "bl0940";
 
-static const uint8_t BL0940_READ_COMMAND = 0x50;  // 0x58 according to documentation
+static const uint8_t BL0940_READ_COMMAND = 0x58;  // 0x58 according to documentation
 static const uint8_t BL0940_FULL_PACKET = 0xAA;
-static const uint8_t BL0940_PACKET_HEADER = 0x55;  // 0x58 according to documentation
+static const uint8_t BL0940_PACKET_HEADER = 0x58;  // 0x58 according to documentation
 
-static const uint8_t BL0940_WRITE_COMMAND = 0xA0;  // 0xA8 according to documentation
+static const uint8_t BL0940_WRITE_COMMAND = 0xA8;  // 0xA8 according to documentation
 static const uint8_t BL0940_REG_I_FAST_RMS_CTRL = 0x10;
 static const uint8_t BL0940_REG_MODE = 0x18;
 static const uint8_t BL0940_REG_SOFT_RESET = 0x19;
