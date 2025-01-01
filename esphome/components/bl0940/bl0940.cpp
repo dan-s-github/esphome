@@ -66,6 +66,20 @@ void BL0940::update() {
 }
 
 void BL0940::setup() {
+  // If either current or voltage references are set explicitly by the user,
+  // calculate the power reference from it unless that is also explicitly set.
+  if ((this->current_reference_set_ || this->voltage_reference_set_) && !this->power_reference_set_) {
+    this->power_reference_ = (this->voltage_reference_ * this->current_reference_ * 4046.0 / 324004.0) / 79931.0;
+    this->power_reference_set_ = true;
+  }
+
+  // Similarly for energy reference, if the power reference was set by the user
+  // either implicitly or explicitly.
+  if (this->power_reference_set_ && !this->energy_reference_set_) {
+    this->energy_reference_ = this->power_reference_ * 3600000 / 419430.4;
+    this->energy_reference_set_ = true;
+  }
+
   for (auto *i : BL0940_INIT) {
     this->write_array(i, 6);
     delay(1);
@@ -122,6 +136,10 @@ void BL0940::received_package_(const DataPacket *data) const {
 
 void BL0940::dump_config() {  // NOLINT(readability-function-cognitive-complexity)
   ESP_LOGCONFIG(TAG, "BL0940:");
+  ESP_LOGCONFIG(TAG, "  Current reference: %f", this->current_reference_);
+  ESP_LOGCONFIG(TAG, "  Energy reference: %f", this->energy_reference_);
+  ESP_LOGCONFIG(TAG, "  Power reference: %f", this->power_reference_);
+  ESP_LOGCONFIG(TAG, "  Voltage reference: %f", this->voltage_reference_);
   LOG_SENSOR("", "Voltage", this->voltage_sensor_);
   LOG_SENSOR("", "Current", this->current_sensor_);
   LOG_SENSOR("", "Power", this->power_sensor_);
