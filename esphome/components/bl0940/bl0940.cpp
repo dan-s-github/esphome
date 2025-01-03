@@ -46,11 +46,12 @@ void BL0940::loop() {
   }
 }
 
-bool BL0940::validate_checksum(const DataPacket *data) {
+bool BL0940::validate_checksum(DataPacket *data) {
   uint8_t checksum = BL0940_READ_COMMAND;
   // Whole package but checksum
-  for (uint32_t i = 0; i < sizeof(data->raw) - 1; i++) {
-    checksum += data->raw[i];
+  uint8_t *raw = (uint8_t *) data;
+  for (uint32_t i = 0; i < sizeof(*data) - 1; i++) {
+    checksum += raw[i];
   }
   checksum ^= 0xFF;
   if (checksum != data->checksum) {
@@ -87,8 +88,9 @@ void BL0940::setup() {
   this->flush();
 }
 
-float BL0940::update_temp_(sensor::Sensor *sensor, ube16_t temperature) const {
-  auto tb = (float) (temperature.h << 8 | temperature.l);
+float BL0940::update_temp_(sensor::Sensor *sensor, uint16_le_t temperature) const {
+  // auto tb = (float) (temperature.h << 8 | temperature.l);
+  auto tb = (float) temperature;
   float converted_temp = ((float) 170 / 448) * (tb / 2 - 32) - 45;
   if (sensor != nullptr) {
     if (sensor->has_state() && std::abs(converted_temp - sensor->get_state()) > max_temperature_diff_) {
@@ -101,18 +103,25 @@ float BL0940::update_temp_(sensor::Sensor *sensor, ube16_t temperature) const {
   return converted_temp;
 }
 
-void BL0940::received_package_(const DataPacket *data) const {
+void BL0940::received_package_(DataPacket *data) {
   // Bad header
   if (data->frame_header != BL0940_PACKET_HEADER) {
     ESP_LOGI(TAG, "Invalid data. Header mismatch: %d", data->frame_header);
     return;
   }
 
-  float v_rms = (float) to_uint32_t(data->v_rms) / voltage_reference_;
-  float i_rms = (float) to_uint32_t(data->i_rms) / current_reference_;
-  float watt = (float) to_int32_t(data->watt) / power_reference_;
-  uint32_t cf_cnt = to_uint32_t(data->cf_cnt);
-  float total_energy_consumption = (float) cf_cnt / energy_reference_;
+  // cf_cnt is only 24 bits, so track overflows
+  uint32_t cf_cnt = (uint24_t) data->cf_cnt;
+  cf_cnt |= this->prev_cf_cnt_ & 0xff000000;
+  if (cf_cnt < this->prev_cf_cnt_) {
+    cf_cnt += 0x1000000;
+  }
+  this->prev_cf_cnt_ = cf_cnt;
+
+  float v_rms = (uint24_t) data->v_rms / voltage_reference_;
+  float i_rms = (uint24_t) data->i_rms / current_reference_;
+  float watt = (int24_t) data->watt / power_reference_;
+  float total_energy_consumption = cf_cnt / energy_reference_;
 
   float tps1 = update_temp_(internal_temperature_sensor_, data->tps1);
   float tps2 = update_temp_(external_temperature_sensor_, data->tps2);
@@ -148,9 +157,9 @@ void BL0940::dump_config() {  // NOLINT(readability-function-cognitive-complexit
   LOG_SENSOR("", "External temperature", this->external_temperature_sensor_);
 }
 
-uint32_t BL0940::to_uint32_t(ube24_t input) { return input.h << 16 | input.m << 8 | input.l; }
+// uint32_t BL0940::to_uint32_t(ube24_t input) { return input.h << 16 | input.m << 8 | input.l; }
 
-int32_t BL0940::to_int32_t(sbe24_t input) { return input.h << 16 | input.m << 8 | input.l; }
+// int32_t BL0940::to_int32_t(sbe24_t input) { return input.h << 16 | input.m << 8 | input.l; }
 
 }  // namespace bl0940
 }  // namespace esphome

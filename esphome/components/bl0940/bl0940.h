@@ -1,6 +1,7 @@
 #pragma once
 
 #include "esphome/core/component.h"
+#include "esphome/core/datatypes.h"
 #include "esphome/components/uart/uart.h"
 #include "esphome/components/sensor/sensor.h"
 
@@ -18,44 +19,23 @@ static const float BL0940_IREF = 266013.13628899;  // should be 324004/1.218
 // Converted to kWh (3.6MJ per kwH). Used to be 256 * 1638.4
 static const float BL0940_EREF = 3.6e6 / 297;
 
-struct ube24_t {  // NOLINT(readability-identifier-naming,altera-struct-pack-align)
-  uint8_t l;
-  uint8_t m;
-  uint8_t h;
-} __attribute__((packed));
-
-struct ube16_t {  // NOLINT(readability-identifier-naming,altera-struct-pack-align)
-  uint8_t l;
-  uint8_t h;
-} __attribute__((packed));
-
-struct sbe24_t {  // NOLINT(readability-identifier-naming,altera-struct-pack-align)
-  uint8_t l;
-  uint8_t m;
-  int8_t h;
-} __attribute__((packed));
-
 // Caveat: All these values are big endian (low - middle - high)
-
-union DataPacket {  // NOLINT(altera-struct-pack-align)
-  uint8_t raw[35];
-  struct {
-    uint8_t frame_header;  // value of 0x58 according to docs. 0x55 according to Tasmota real world tests. Reality wins.
-    ube24_t i_fast_rms;    // 0x00
-    ube24_t i_rms;         // 0x04
-    ube24_t RESERVED0;     // reserved
-    ube24_t v_rms;         // 0x06
-    ube24_t RESERVED1;     // reserved
-    sbe24_t watt;          // 0x08
-    ube24_t RESERVED2;     // reserved
-    ube24_t cf_cnt;        // 0x0A
-    ube24_t RESERVED3;     // reserved
-    ube16_t tps1;          // 0x0c
-    uint8_t RESERVED4;     // value of 0x00
-    ube16_t tps2;          // 0x0c
-    uint8_t RESERVED5;     // value of 0x00
-    uint8_t checksum;      // checksum
-  };
+struct DataPacket {
+  uint8_t frame_header;    // value of 0x58 according to docs. 0x55 according to Tasmota real world tests. Reality wins.
+  uint24_le_t i_fast_rms;  // 0x00
+  uint24_le_t i_rms;       // 0x04
+  uint24_t RESERVED0;      // reserved
+  uint24_le_t v_rms;       // 0x06
+  uint24_t RESERVED1;      // reserved
+  int24_le_t watt;         // 0x08
+  uint24_t RESERVED2;      // reserved
+  uint24_le_t cf_cnt;      // 0x0A
+  uint24_t RESERVED3;      // reserved
+  uint16_le_t tps1;        // 0x0c
+  uint8_t RESERVED4;       // value of 0x00
+  uint16_le_t tps2;        // 0x0c
+  uint8_t RESERVED5;       // value of 0x00
+  uint8_t checksum;        // checksum
 } __attribute__((packed));
 
 class BL0940 : public PollingComponent, public uart::UARTDevice {
@@ -119,15 +99,12 @@ class BL0940 : public PollingComponent, public uart::UARTDevice {
   float energy_reference_ = BL0940_EREF;
   bool energy_reference_set_ = false;
 
-  float update_temp_(sensor::Sensor *sensor, ube16_t packed_temperature) const;
+  float update_temp_(sensor::Sensor *sensor, uint16_le_t packed_temperature) const;
 
-  static uint32_t to_uint32_t(ube24_t input);
+  uint32_t prev_cf_cnt_ = 0;
 
-  static int32_t to_int32_t(sbe24_t input);
-
-  static bool validate_checksum(const DataPacket *data);
-
-  void received_package_(const DataPacket *data) const;
+  bool validate_checksum(DataPacket *data);
+  void received_package_(DataPacket *data);
 };
 }  // namespace bl0940
 }  // namespace esphome
