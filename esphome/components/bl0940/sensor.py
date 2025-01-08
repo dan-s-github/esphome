@@ -23,6 +23,11 @@ from esphome.const import (
     UNIT_WATT,
 )
 
+CONF_REFERENCE_VOLTAGE = "reference_voltage"
+CONF_RESISTOR_SHUNT = "resistor_shunt"
+CONF_RESISTOR_ONE = "resistor_one"
+CONF_RESISTOR_TWO = "resistor_two"
+
 CONF_CURRENT_REFERENCE = "current_reference"
 CONF_ENERGY_REFERENCE = "energy_reference"
 CONF_POWER_REFERENCE = "power_reference"
@@ -73,6 +78,10 @@ CONFIG_SCHEMA = (
                 device_class=DEVICE_CLASS_TEMPERATURE,
                 state_class=STATE_CLASS_MEASUREMENT,
             ),
+            cv.Optional(CONF_REFERENCE_VOLTAGE): cv.float_,
+            cv.Optional(CONF_RESISTOR_SHUNT): cv.float_,
+            cv.Optional(CONF_RESISTOR_ONE): cv.float_,
+            cv.Optional(CONF_RESISTOR_TWO): cv.float_,
             cv.Optional(CONF_CURRENT_REFERENCE): cv.float_,
             cv.Optional(CONF_ENERGY_REFERENCE): cv.float_,
             cv.Optional(CONF_POWER_REFERENCE): cv.float_,
@@ -107,6 +116,18 @@ async def to_code(config):
     if external_temperature_config := config.get(CONF_EXTERNAL_TEMPERATURE):
         sens = await sensor.new_sensor(external_temperature_config)
         cg.add(var.set_external_temperature_sensor(sens))
+
+    # Calibrate based on schematics
+    if (vref := config.get(CONF_REFERENCE_VOLTAGE, None)) is not None:
+        cg.add(var.set_reference_voltage(vref))
+    if (rl := config.get(CONF_RESISTOR_SHUNT, None)) is not None:
+        cg.add(var.set_resistor_shunt(rl))
+    if (rOne := config.get(CONF_RESISTOR_ONE, None)) is not None:
+        cg.add(var.set_resistor_one(rOne))
+    if (rTwo := config.get(CONF_RESISTOR_TWO, None)) is not None:
+        cg.add(var.set_resistor_one(rTwo))
+
+    # Calibrate using measured values
     if (current_reference := config.get(CONF_CURRENT_REFERENCE, None)) is not None:
         cg.add(var.set_current_reference(current_reference))
     if (voltage_reference := config.get(CONF_VOLTAGE_REFERENCE, None)) is not None:

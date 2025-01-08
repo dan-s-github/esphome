@@ -67,18 +67,23 @@ void BL0940::update() {
 }
 
 void BL0940::setup() {
-  // If either current or voltage references are set explicitly by the user,
-  // calculate the power reference from it unless that is also explicitly set.
-  if ((this->current_reference_set_ || this->voltage_reference_set_) && !this->power_reference_set_) {
-    this->power_reference_ = (this->voltage_reference_ * this->current_reference_ * 4046.0 / 324004.0) / 79931.0;
-    this->power_reference_set_ = true;
+  // calculate references based on schematic defaults if not set explicitly
+  if (!this->voltage_reference_set_) {
+    // should be: 79931 / Vref * (R1 * 1000) / (R1 + R2)
+    this->voltage_reference_ = 79931 / this->vref_ * (this->r_one_ * 1000) / (this->r_one_ + this->r_two_);
   }
-
-  // Similarly for energy reference, if the power reference was set by the user
-  // either implicitly or explicitly.
-  if (this->power_reference_set_ && !this->energy_reference_set_) {
-    this->energy_reference_ = this->power_reference_ * 3600000 / 419430.4;
-    this->energy_reference_set_ = true;
+  if (!this->current_reference_set_) {
+    // should be: 324004 * RL / Vref
+    this->current_reference_ = 324004 * this->r_shunt_ / this->vref_;
+  }
+  if (!this->power_reference_set_) {
+    // should be: 4046 * RL * R1 * 1000 / Vref² / (R1 + R2)
+    this->power_reference_ =
+        4046 * this->r_shunt_ * this->r_one_ * 1000 / this->vref_ / this->vref_ / (this->r_one_ + this->r_two_);
+  }
+  if (!this->energy_reference_set_) {
+    // should be: 3600000 / (1638.4 * 256) * BL0940_PREF
+    this->energy_reference_ = 3600000 / (1638.4 * 256) * this->power_reference_;
   }
 
   for (auto *i : BL0940_INIT) {
@@ -145,6 +150,10 @@ void BL0940::received_package_(DataPacket *data) {
 
 void BL0940::dump_config() {  // NOLINT(readability-function-cognitive-complexity)
   ESP_LOGCONFIG(TAG, "BL0940:");
+  ESP_LOGCONFIG(TAG, "  Vref: %f", this->vref_);
+  ESP_LOGCONFIG(TAG, "  R shunt: %f", this->r_shunt_);
+  ESP_LOGCONFIG(TAG, "  R One: %f", this->r_one_);
+  ESP_LOGCONFIG(TAG, "  R Two: %f", this->r_two_);
   ESP_LOGCONFIG(TAG, "  Current reference: %f", this->current_reference_);
   ESP_LOGCONFIG(TAG, "  Energy reference: %f", this->energy_reference_);
   ESP_LOGCONFIG(TAG, "  Power reference: %f", this->power_reference_);

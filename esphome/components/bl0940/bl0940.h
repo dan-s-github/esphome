@@ -11,13 +11,22 @@ namespace bl0940 {
 // static const float BL0940_UREF = 33000;
 // static const float BL0940_IREF = 275000;  // 2750 from tasmota. Seems to generate values 100 times too high
 
-static const float BL0940_PREF = 1430;             // taken from tasmota
-static const float BL0940_UREF = 65624.79474548;   // should be 79931/1.218
-static const float BL0940_IREF = 266013.13628899;  // should be 324004/1.218
+// Values according to BL0940 application note:
+// https://www.belling.com.cn/media/file_object/bel_product/BL0940/guide/BL0940_APPNote_TSSOP14_V1.04_EN.pdf
+
+static const float BL0940_VREF = 1.218;  // Vref = 1.218
+static const float BL0940_RL = 1;        // RL = 1 mΩ
+static const float BL0940_R1 = 0.51;     // R1 = 0.51 kΩ
+static const float BL0940_R2 = 1950;     // R2 = 5 x 390 kΩ -> 1950 kΩ
+
+static const float BL0940_UREF = 17158.9201389365;  // should be: 79931 / Vref * (R1 * 1000) / (R1 + R2)
+static const float BL0940_IREF = 266013.136288998;  // should be: 324004 * RL / Vref
+static const float BL0940_PREF = 713.104696500825;  // should be: 4046 * RL * R1 * 1000 / Vref² / (R1 + R2)
+static const float BL0940_EREF = 6120.6267056536;   // should be: 3600000 / (1638.4 * 256) * BL0940_PREF
 
 // Measured to 297J  per click according to power consumption of 5 minutes
 // Converted to kWh (3.6MJ per kwH). Used to be 256 * 1638.4
-static const float BL0940_EREF = 3.6e6 / 297;
+// static const float BL0940_EREF = 3.6e6 / 297;
 
 // Caveat: All these values are big endian (low - middle - high)
 struct DataPacket {
@@ -44,12 +53,19 @@ class BL0940 : public PollingComponent, public uart::UARTDevice {
   void set_current_sensor(sensor::Sensor *current_sensor) { current_sensor_ = current_sensor; }
   void set_power_sensor(sensor::Sensor *power_sensor) { power_sensor_ = power_sensor; }
   void set_energy_sensor(sensor::Sensor *energy_sensor) { energy_sensor_ = energy_sensor; }
+
   void set_internal_temperature_sensor(sensor::Sensor *internal_temperature_sensor) {
     internal_temperature_sensor_ = internal_temperature_sensor;
   }
   void set_external_temperature_sensor(sensor::Sensor *external_temperature_sensor) {
     external_temperature_sensor_ = external_temperature_sensor;
   }
+
+  void set_reference_voltage(float vref) { this->vref_ = vref; }
+  void set_resistor_shunt(float resistor_shunt) { this->r_shunt_ = resistor_shunt; }
+  void set_resistor_one(float resistor_one) { this->r_one_ = resistor_one; }
+  void set_resistor_two(float resistor_two) { this->r_two_ = resistor_two; }
+
   void set_current_reference(float current_ref) {
     this->current_reference_ = current_ref;
     this->current_reference_set_ = true;
@@ -85,6 +101,11 @@ class BL0940 : public PollingComponent, public uart::UARTDevice {
 
   // Max difference between two measurements of the temperature. Used to avoid noise.
   float max_temperature_diff_{0};
+
+  float vref_ = BL0940_VREF;
+  float r_shunt_ = BL0940_RL;
+  float r_one_ = BL0940_R1;
+  float r_two_ = BL0940_R2;
 
   // Divide by this to turn into Watt
   float power_reference_ = BL0940_PREF;
