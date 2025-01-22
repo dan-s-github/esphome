@@ -8,9 +8,11 @@
 namespace esphome {
 namespace bl0940_v2 {
 
+static const uint8_t BL0940_V2_READ_COMMAND = 0x58;
+static const uint8_t BL0940_V2_WRITE_COMMAND = 0xA8;
+
 // Values according to BL0940 application note:
 // https://www.belling.com.cn/media/file_object/bel_product/BL0940/guide/BL0940_APPNote_TSSOP14_V1.04_EN.pdf
-
 static const float BL0940_V2_VREF = 1.218;  // Vref = 1.218
 static const float BL0940_V2_RL = 1;        // RL = 1 mΩ
 static const float BL0940_V2_R1 = 0.51;     // R1 = 0.51 kΩ
@@ -48,6 +50,9 @@ class BL0940_V2 : public PollingComponent, public uart::UARTDevice {
   void set_external_temperature_sensor(sensor::Sensor *external_temperature_sensor) {
     external_temperature_sensor_ = external_temperature_sensor;
   }
+
+  void set_read_command(uint8_t read_command) { this->read_command_ = read_command; }
+  void set_write_command(uint8_t write_command) { this->write_command_ = write_command; }
 
   void set_reference_voltage(float vref) { this->vref_ = vref; }
   void set_resistor_shunt(float resistor_shunt) { this->r_shunt_ = resistor_shunt; }
@@ -89,6 +94,9 @@ class BL0940_V2 : public PollingComponent, public uart::UARTDevice {
 
   // Max difference between two measurements of the temperature. Used to avoid noise.
   float max_temperature_diff_{0};
+
+  uint8_t read_command_ = BL0940_V2_READ_COMMAND;
+  uint8_t write_command_ = BL0940_V2_WRITE_COMMAND;
 
   float vref_ = BL0940_V2_VREF;
   float r_shunt_ = BL0940_V2_RL;

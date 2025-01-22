@@ -23,6 +23,9 @@ from esphome.const import (
     UNIT_WATT,
 )
 
+CONF_READ_COMMAND = "read_command"
+CONF_WRITE_COMMAND = "write_command"
+
 CONF_REFERENCE_VOLTAGE = "reference_voltage"
 CONF_RESISTOR_SHUNT = "resistor_shunt"
 CONF_RESISTOR_ONE = "resistor_one"
@@ -78,6 +81,8 @@ CONFIG_SCHEMA = (
                 device_class=DEVICE_CLASS_TEMPERATURE,
                 state_class=STATE_CLASS_MEASUREMENT,
             ),
+            cv.Optional(CONF_READ_COMMAND): cv.hex_uint8_t,
+            cv.Optional(CONF_WRITE_COMMAND): cv.hex_uint8_t,
             cv.Optional(CONF_REFERENCE_VOLTAGE): cv.float_,
             cv.Optional(CONF_RESISTOR_SHUNT): cv.float_,
             cv.Optional(CONF_RESISTOR_ONE): cv.float_,
@@ -116,6 +121,12 @@ async def to_code(config):
     if external_temperature_config := config.get(CONF_EXTERNAL_TEMPERATURE):
         sens = await sensor.new_sensor(external_temperature_config)
         cg.add(var.set_external_temperature_sensor(sens))
+
+    # Customize bl0940 commands
+    if (read_cmd := config.get(CONF_READ_COMMAND, None)) is not None:
+        cg.add(var.set_read_command(read_cmd))
+    if (write_cmd := config.get(CONF_WRITE_COMMAND, None)) is not None:
+        cg.add(var.set_write_command(write_cmd))
 
     # Calibrate based on schematics
     if (vref := config.get(CONF_REFERENCE_VOLTAGE, None)) is not None:
