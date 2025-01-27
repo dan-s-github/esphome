@@ -74,10 +74,12 @@ void BL0940_V2::setup() {
     // formula: 324004 * RL / Vref
     this->current_reference_ = 324004 * this->r_shunt_ / this->vref_;
   }
-  if (!this->power_reference_set_) {
+  if (this->voltage_reference_set_ && this->current_reference_set_) {
+    // calculate power reference based on custom voltage and current reference
+    this->power_reference_ = this->voltage_reference_ * this->current_reference_ * 4046 / 324004 / 79931;
+  } else if (!this->power_reference_set_) {
     // formula: 4046 * RL * R1 * 1000 / Vref² / (R1 + R2) or ~ voltage_reference_ * current_reference_ * 4046 / 324004 / 79931
     this->power_reference_ = 4046 * this->r_shunt_ * this->r_one_ * 1000 / this->vref_ / this->vref_ / (this->r_one_  + this->r_two_);
-    //this->power_reference_ = this->voltage_reference_ * this->current_reference_ * 4046 / 324004 / 79931;
   }
   if (!this->energy_reference_set_) {
     // formula: 3600000 * 4046 * RL * R1 * 1000 / (1638.4 * 256) / Vref² / (R1 + R2)
